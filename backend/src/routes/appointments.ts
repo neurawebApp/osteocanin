@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import { authenticateToken, AuthRequest, requireRole } from '../middleware/auth';
 import { AppointmentService } from '../services/appointmentService';
-import { UserRole, AppointmentStatus } from '@prisma/client';
+import { UserRole, AppointmentStatus, ReminderType } from '@prisma/client';
 import { prisma } from '../index';
 import { z } from 'zod';
 
@@ -77,14 +77,34 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
     // Automatically create reminders for new appointments
     try {
-      await fetch(`${process.env.API_URL}/api/reminders/booking`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': req.headers.authorization || ''
+      // Create automatic reminders
+      const reminders = [
+        {
+          type: ReminderType.APPOINTMENT_CONFIRMATION,
+          message: `Confirm appointment for ${appointment.animal.name} on ${appointment.startTime.toDateString()}`,
+          messageFr: `Confirmer le rendez-vous pour ${appointment.animal.name} le ${appointment.startTime.toDateString()}`,
+          remindAt: new Date(appointment.startTime.getTime() - 24 * 60 * 60 * 1000), // 24 hours before
+          appointmentId: appointment.id
         },
-        body: JSON.stringify({ appointmentId: appointment.id })
-      });
+        {
+          type: ReminderType.APPOINTMENT_REMINDER,
+          message: `Reminder: ${appointment.animal.name}'s appointment tomorrow`,
+          messageFr: `Rappel: rendez-vous de ${appointment.animal.name} demain`,
+          remindAt: new Date(appointment.startTime.getTime() - 2 * 60 * 60 * 1000), // 2 hours before
+          appointmentId: appointment.id
+        }
+      ];
+
+      await Promise.all(
+        reminders.map(reminder => 
+          prisma.reminder.create({
+            data: {
+              ...reminder,
+              sent: false
+            }
+          })
+        )
+      );
     } catch (reminderError) {
       console.error('Failed to create automatic reminders:', reminderError);
       // Don't fail the appointment creation if reminders fail
@@ -222,6 +242,70 @@ router.put('/:id/status',
     } catch (error: any) {
       res.status(400).json({
         error: 'Failed to update appointment status'
+      });
+    }
+  }
+);
+
+// Confirm appointment (admin only)
+router.put('/:id/confirm', 
+  authenticateToken, 
+  requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      
+      const appointment = await prisma.appointment.update({
+        where: { id },
+        data: { status: AppointmentStatus.CONFIRMED },
+        include: {
+          client: true,
+          animal: true,
+          service: true
+        }
+      });
+
+      res.json({
+        data: appointment,
+        message: 'Appointment confirmed successfully'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        error: 'Failed to confirm appointment'
+      });
+    }
+  }
+);
+
+// Refuse appointment (admin only)
+router.put('/:id/refuse', 
+  authenticateToken, 
+  requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
+  async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      
+      const appointment = await prisma.appointment.update({
+        where: { id },
+        data: { 
+          status: AppointmentStatus.CANCELLED,
+          notes: reason ? `${appointment.notes || ''}\n\nRefused by admin: ${reason}` : appointment.notes
+        },
+        include: {
+          client: true,
+          animal: true,
+          service: true
+        }
+      });
+
+      res.json({
+        data: appointment,
+        message: 'Appointment refused successfully'
+      });
+    } catch (error: any) {
+      res.status(400).json({
+        error: 'Failed to refuse appointment'
       });
     }
   }

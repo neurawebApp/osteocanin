@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
 import { 
   HeartIcon, 
   PhoneIcon, 
   EnvelopeIcon, 
   MapPinIcon, 
   Bars3Icon, 
-  XMarkIcon 
+  XMarkIcon,
+  SunIcon,
+  MoonIcon
 } from '@heroicons/react/24/outline';
 import { Button } from './ui/Button';
 
@@ -17,6 +20,7 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -84,6 +88,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 >
                   Dashboard
                 </Link>
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 rounded-md text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 transition-colors"
+                  aria-label="Toggle theme"
+                >
+                  {theme === 'light' ? <MoonIcon className="h-5 w-5" /> : <SunIcon className="h-5 w-5" />}
+                </button>
                 <Link to="/booking">
                   <Button className="bg-blue-600 hover:bg-blue-700 text-white">
                     Book Now
@@ -94,12 +105,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
             {/* Mobile menu button */}
             <div className="md:hidden">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={toggleTheme}
+                  className="p-2 rounded-md text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 transition-colors"
+                  aria-label="Toggle theme"
+                >
+                  {theme === 'light' ? <MoonIcon className="h-5 w-5" /> : <SunIcon className="h-5 w-5" />}
+                </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="text-gray-700 hover:text-blue-600 p-2"
               >
                 {mobileMenuOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -107,23 +127,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
           <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t border-blue-100">
-              <Link to="/" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white dark:bg-gray-800 border-t border-blue-100 dark:border-gray-700">
+              <Link to="/" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium">
                 Home
               </Link>
-              <Link to="/services" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+              <Link to="/services" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium">
                 Services
               </Link>
-              <Link to="/about" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+              <Link to="/about" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium">
                 About
               </Link>
-              <Link to="/blog" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+              <Link to="/blog" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium">
                 Blog
               </Link>
-              <Link to="/contact" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+              <Link to="/contact" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium">
                 Contact
               </Link>
-              <Link to="/dashboard" className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium">
+              <Link to="/dashboard" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium">
                 Dashboard
               </Link>
               <Link to="/booking" className="block px-3 py-2">
@@ -142,7 +162,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white">
+      <footer className="bg-gray-900 dark:bg-gray-950 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
@@ -150,23 +170,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <HeartIcon className="h-8 w-8 text-blue-400" />
                 <span className="text-xl font-bold">PawCare Osteopathy</span>
               </div>
-              <p className="text-gray-300 mb-4">
+              <p className="text-gray-300 dark:text-gray-400 mb-4">
                 Professional canine osteopathy services dedicated to improving your dog's health and well-being through gentle, effective treatments.
               </p>
               <div className="flex space-x-4">
-                <div className="h-5 w-5 text-gray-400 hover:text-blue-400 cursor-pointer transition-colors">📘</div>
-                <div className="h-5 w-5 text-gray-400 hover:text-blue-400 cursor-pointer transition-colors">📷</div>
-                <div className="h-5 w-5 text-gray-400 hover:text-blue-400 cursor-pointer transition-colors">🐦</div>
+                <div className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-blue-400 cursor-pointer transition-colors">📘</div>
+                <div className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-blue-400 cursor-pointer transition-colors">📷</div>
+                <div className="h-5 w-5 text-gray-400 dark:text-gray-500 hover:text-blue-400 cursor-pointer transition-colors">🐦</div>
               </div>
             </div>
             
             <div>
               <h3 className="text-lg font-semibold mb-4">Quick Links</h3>
               <ul className="space-y-2">
-                <li><Link to="/services" className="text-gray-300 hover:text-white transition-colors">Services</Link></li>
-                <li><Link to="/about" className="text-gray-300 hover:text-white transition-colors">About</Link></li>
-                <li><Link to="/blog" className="text-gray-300 hover:text-white transition-colors">Blog</Link></li>
-                <li><Link to="/contact" className="text-gray-300 hover:text-white transition-colors">Contact</Link></li>
+                <li><Link to="/services" className="text-gray-300 dark:text-gray-400 hover:text-white transition-colors">Services</Link></li>
+                <li><Link to="/about" className="text-gray-300 dark:text-gray-400 hover:text-white transition-colors">About</Link></li>
+                <li><Link to="/blog" className="text-gray-300 dark:text-gray-400 hover:text-white transition-colors">Blog</Link></li>
+                <li><Link to="/contact" className="text-gray-300 dark:text-gray-400 hover:text-white transition-colors">Contact</Link></li>
               </ul>
             </div>
             
@@ -175,22 +195,22 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <ul className="space-y-2">
                 <li className="flex items-center space-x-2">
                   <PhoneIcon className="h-4 w-4 text-blue-400" />
-                  <span className="text-gray-300">(555) 123-4567</span>
+                  <span className="text-gray-300 dark:text-gray-400">(555) 123-4567</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <EnvelopeIcon className="h-4 w-4 text-blue-400" />
-                  <span className="text-gray-300">info@pawcareosteo.com</span>
+                  <span className="text-gray-300 dark:text-gray-400">info@pawcareosteo.com</span>
                 </li>
                 <li className="flex items-center space-x-2">
                   <MapPinIcon className="h-4 w-4 text-blue-400" />
-                  <span className="text-gray-300">123 Wellness St, Pet City</span>
+                  <span className="text-gray-300 dark:text-gray-400">123 Wellness St, Pet City</span>
                 </li>
               </ul>
             </div>
           </div>
           
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center">
-            <p className="text-gray-400">
+          <div className="border-t border-gray-800 dark:border-gray-700 mt-8 pt-8 text-center">
+            <p className="text-gray-400 dark:text-gray-500">
               © 2025 PawCare Osteopathy. All rights reserved.
             </p>
           </div>

@@ -2,21 +2,21 @@
 import { Router } from 'express';
 import { authenticateToken, AuthRequest, requireRole } from '../middleware/auth';
 import { prisma } from '../index';
-import { UserRole } from '@prisma/client';
+import { UserRole, TodoPriority } from '@prisma/client';
 import { z } from 'zod';
 
 const router = Router();
 
 const createTodoSchema = z.object({
   task: z.string().min(1, 'Task is required'),
-  priority: z.enum(['high', 'medium', 'low']).default('medium'),
+  priority: z.enum(['HIGH', 'MEDIUM', 'LOW']).default('MEDIUM'),
   dueDate: z.string().optional(),
   description: z.string().optional(),
 });
 
 const updateTodoSchema = z.object({
   task: z.string().optional(),
-  priority: z.enum(['high', 'medium', 'low']).optional(),
+  priority: z.enum(['HIGH', 'MEDIUM', 'LOW']).optional(),
   dueDate: z.string().optional(),
   description: z.string().optional(),
   completed: z.boolean().optional(),
@@ -28,59 +28,28 @@ router.get('/',
   requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
   async (req: AuthRequest, res) => {
     try {
-      // For now, we'll store todos in a separate model or use a JSON field in user
-      // This is a simplified version using a hypothetical Todo model
-      const todos = await prisma.user.findUnique({
-        where: { id: req.user!.id },
-        select: { 
-          id: true,
-          // Assuming we add a todos JSON field to the user model
-          // or create a separate Todo model
-        }
+      const todos = await prisma.todo.findMany({
+        where: { userId: req.user!.id },
+        orderBy: [
+          { completed: 'asc' },
+          { priority: 'desc' },
+          { createdAt: 'desc' }
+        ]
       });
 
-      // Mock data for now - replace with actual database queries
-      const mockTodos = [
-        {
-          id: '1',
-          task: 'Follow up with Mrs. Anderson about Luna\'s progress',
-          completed: false,
-          priority: 'high',
-          createdAt: new Date().toISOString(),
-          dueDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
-        },
-        {
-          id: '2',
-          task: 'Update website with new service pricing',
-          completed: false,
-          priority: 'medium',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '3',
-          task: 'Order new treatment table for clinic',
-          completed: true,
-          priority: 'low',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '4',
-          task: 'Schedule social media posts for next week',
-          completed: false,
-          priority: 'medium',
-          createdAt: new Date().toISOString()
-        },
-        {
-          id: '5',
-          task: 'Review and respond to Google reviews',
-          completed: false,
-          priority: 'high',
-          createdAt: new Date().toISOString()
-        }
-      ];
+      const transformedTodos = todos.map(todo => ({
+        id: todo.id,
+        task: todo.task,
+        completed: todo.completed,
+        priority: todo.priority.toLowerCase(),
+        dueDate: todo.dueDate?.toISOString(),
+        description: todo.description,
+        createdAt: todo.createdAt.toISOString()
+      }));
 
-      res.json({ data: mockTodos });
+      res.json({ data: transformedTodos });
     } catch (error: any) {
+      console.error('Error fetching todos:', error);
       res.status(500).json({ error: 'Failed to fetch todos' });
     }
   }
@@ -94,20 +63,32 @@ router.post('/',
     try {
       const validatedData = createTodoSchema.parse(req.body);
       
-      // Mock creation - replace with actual database logic
-      const newTodo = {
-        id: Date.now().toString(),
-        ...validatedData,
-        completed: false,
-        createdAt: new Date().toISOString(),
-        userId: req.user!.id
+      const todo = await prisma.todo.create({
+        data: {
+          task: validatedData.task,
+          priority: validatedData.priority as TodoPriority,
+          dueDate: validatedData.dueDate ? new Date(validatedData.dueDate) : null,
+          description: validatedData.description,
+          userId: req.user!.id
+        }
+      });
+
+      const transformedTodo = {
+        id: todo.id,
+        task: todo.task,
+        completed: todo.completed,
+        priority: todo.priority.toLowerCase(),
+        dueDate: todo.dueDate?.toISOString(),
+        description: todo.description,
+        createdAt: todo.createdAt.toISOString()
       };
 
       res.status(201).json({
-        data: newTodo,
+        data: transformedTodo,
         message: 'Todo created successfully'
       });
     } catch (error: any) {
+      console.error('Error creating todo:', error);
       res.status(400).json({
         error: error.message || 'Failed to create todo'
       });
@@ -124,18 +105,37 @@ router.put('/:id',
       const { id } = req.params;
       const validatedData = updateTodoSchema.parse(req.body);
       
-      // Mock update - replace with actual database logic
-      const updatedTodo = {
-        id,
-        ...validatedData,
-        updatedAt: new Date().toISOString()
+      const updateData: any = {};
+      if (validatedData.task !== undefined) updateData.task = validatedData.task;
+      if (validatedData.priority !== undefined) updateData.priority = validatedData.priority as TodoPriority;
+      if (validatedData.dueDate !== undefined) updateData.dueDate = validatedData.dueDate ? new Date(validatedData.dueDate) : null;
+      if (validatedData.description !== undefined) updateData.description = validatedData.description;
+      if (validatedData.completed !== undefined) updateData.completed = validatedData.completed;
+
+      const todo = await prisma.todo.update({
+        where: { 
+          id,
+          userId: req.user!.id 
+        },
+        data: updateData
+      });
+
+      const transformedTodo = {
+        id: todo.id,
+        task: todo.task,
+        completed: todo.completed,
+        priority: todo.priority.toLowerCase(),
+        dueDate: todo.dueDate?.toISOString(),
+        description: todo.description,
+        createdAt: todo.createdAt.toISOString()
       };
 
       res.json({
-        data: updatedTodo,
+        data: transformedTodo,
         message: 'Todo updated successfully'
       });
     } catch (error: any) {
+      console.error('Error updating todo:', error);
       res.status(400).json({
         error: error.message || 'Failed to update todo'
       });
@@ -151,18 +151,34 @@ router.put('/:id/toggle',
     try {
       const { id } = req.params;
       
-      // Mock toggle - replace with actual database logic
-      const toggledTodo = {
-        id,
-        completed: true, // This should be the opposite of current state
-        updatedAt: new Date().toISOString()
+      const currentTodo = await prisma.todo.findFirst({
+        where: { 
+          id,
+          userId: req.user!.id 
+        }
+      });
+
+      if (!currentTodo) {
+        return res.status(404).json({ error: 'Todo not found' });
+      }
+
+      const todo = await prisma.todo.update({
+        where: { id },
+        data: { completed: !currentTodo.completed }
+      });
+
+      const transformedTodo = {
+        id: todo.id,
+        completed: todo.completed,
+        updatedAt: todo.updatedAt.toISOString()
       };
 
       res.json({
-        data: toggledTodo,
+        data: transformedTodo,
         message: 'Todo toggled successfully'
       });
     } catch (error: any) {
+      console.error('Error toggling todo:', error);
       res.status(400).json({
         error: 'Failed to toggle todo'
       });
@@ -178,11 +194,18 @@ router.delete('/:id',
     try {
       const { id } = req.params;
       
-      // Mock deletion - replace with actual database logic
+      await prisma.todo.delete({
+        where: { 
+          id,
+          userId: req.user!.id 
+        }
+      });
+
       res.json({
         message: 'Todo deleted successfully'
       });
     } catch (error: any) {
+      console.error('Error deleting todo:', error);
       res.status(400).json({
         error: 'Failed to delete todo'
       });

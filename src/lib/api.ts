@@ -112,6 +112,23 @@ class ApiClient {
     return this.request(`/blog/${slug}`);
   }
 
+  async getAdminBlogPosts() {
+    return this.request('/blog/admin/all');
+  }
+
+  async createBlogPost(data: any) {
+    return this.request('/blog', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBlogPost(id: string) {
+    return this.request(`/blog/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Animals endpoints
   async getAnimals() {
     return this.request('/animals');
@@ -181,6 +198,19 @@ class ApiClient {
     });
   }
 
+  async confirmAppointment(id: string) {
+    return this.request(`/appointments/${id}/confirm`, {
+      method: 'PUT',
+    });
+  }
+
+  async refuseAppointment(id: string, reason?: string) {
+    return this.request(`/appointments/${id}/refuse`, {
+      method: 'PUT',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
   async rescheduleAppointment(id: string, newStartTime: string) {
     return this.request(`/appointments/${id}/reschedule`, {
       method: 'PUT',
@@ -190,6 +220,10 @@ class ApiClient {
 
   async getAvailability(serviceId: string, date: string) {
     return this.request(`/appointments/availability?serviceId=${serviceId}&date=${date}`);
+  }
+
+  async getPendingAppointments() {
+    return this.request('/dashboard/pending-appointments');
   }
 
   // Dashboard endpoints
@@ -443,6 +477,22 @@ class ApiClient {
   // Client-specific endpoints
   async getClientProfile() {
     return this.request('/profile');
+  }
+
+  async getClients() {
+    return this.request('/users/clients');
+  }
+
+  async validateClient(id: string) {
+    return this.request(`/users/${id}/validate`, {
+      method: 'PUT',
+    });
+  }
+
+  async deleteClient(id: string) {
+    return this.request(`/users/${id}`, {
+      method: 'DELETE',
+    });
   }
 
   async updateClientProfile(data: {
