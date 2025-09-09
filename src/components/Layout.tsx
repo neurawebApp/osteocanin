@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../hooks/useAuth';
 import { 
   HeartIcon, 
   PhoneIcon, 
@@ -20,7 +21,8 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
-  const { theme, toggleTheme } = useTheme();
+  const { actualTheme, toggleTheme } = useTheme();
+  const { isAuthenticated, user } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -93,13 +95,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className="p-2 rounded-md text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 transition-colors"
                   aria-label="Toggle theme"
                 >
-                  {theme === 'light' ? <MoonIcon className="h-5 w-5" /> : <SunIcon className="h-5 w-5" />}
+                  {actualTheme === 'light' ? <MoonIcon className="h-5 w-5" /> : <SunIcon className="h-5 w-5" />}
                 </button>
-                <Link to="/booking">
-                  <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-                    Book Now
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <Link to="/dashboard">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link to="/booking">
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                      Book Now
+                    </Button>
+                  </Link>
+                )}
               </div>
             </div>
 
@@ -111,7 +121,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   className="p-2 rounded-md text-gray-700 hover:text-blue-600 dark:text-gray-300 dark:hover:text-blue-400 transition-colors"
                   aria-label="Toggle theme"
                 >
-                  {theme === 'light' ? <MoonIcon className="h-5 w-5" /> : <SunIcon className="h-5 w-5" />}
+                  {actualTheme === 'light' ? <MoonIcon className="h-5 w-5" /> : <SunIcon className="h-5 w-5" />}
                 </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -146,11 +156,19 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <Link to="/dashboard" className="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 block px-3 py-2 rounded-md text-base font-medium">
                 Dashboard
               </Link>
-              <Link to="/booking" className="block px-3 py-2">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                  Book Now
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link to="/dashboard" className="block px-3 py-2">
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/booking" className="block px-3 py-2">
+                  <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                    Book Now
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         )}
@@ -162,7 +180,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 dark:bg-gray-950 text-white">
+      <footer className="bg-gray-900 dark:bg-gray-950 text-white mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="col-span-1 md:col-span-2">
