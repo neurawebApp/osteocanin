@@ -35,6 +35,8 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
     
+    console.log('API Request:', options.method || 'GET', url);
+    
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
@@ -44,14 +46,22 @@ class ApiClient {
       ...options,
     };
 
+    if (options.body) {
+      console.log('Request body:', options.body);
+    }
     const response = await fetch(url, config);
+    
+    console.log('API Response:', response.status, response.statusText);
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error('API Error:', errorData);
       throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    console.log('Response data:', data);
+    return data;
   }
 
   // Auth endpoints
@@ -250,9 +260,15 @@ class ApiClient {
     dueDate?: string;
     description?: string;
   }) {
+    // Convert priority to uppercase for backend
+    const backendData = {
+      ...data,
+      priority: data.priority.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW'
+    };
+    
     return this.request('/todos', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(backendData),
     });
   }
 
@@ -263,9 +279,15 @@ class ApiClient {
     description?: string;
     completed: boolean;
   }>) {
+    // Convert priority to uppercase for backend if present
+    const backendData = {
+      ...data,
+      ...(data.priority && { priority: data.priority.toUpperCase() as 'HIGH' | 'MEDIUM' | 'LOW' })
+    };
+    
     return this.request(`/todos/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      body: JSON.stringify(backendData),
     });
   }
 

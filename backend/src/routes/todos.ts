@@ -28,6 +28,7 @@ router.get('/',
   requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
   async (req: AuthRequest, res) => {
     try {
+      console.log('Fetching todos for user:', req.user!.id);
       const todos = await prisma.todo.findMany({
         where: { userId: req.user!.id },
         orderBy: [
@@ -37,6 +38,7 @@ router.get('/',
         ]
       });
 
+      console.log('Found todos:', todos.length);
       const transformedTodos = todos.map(todo => ({
         id: todo.id,
         task: todo.task,
@@ -61,6 +63,7 @@ router.post('/',
   requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
   async (req: AuthRequest, res) => {
     try {
+      console.log('Creating todo:', req.body);
       const validatedData = createTodoSchema.parse(req.body);
       
       const todo = await prisma.todo.create({
@@ -73,6 +76,7 @@ router.post('/',
         }
       });
 
+      console.log('Created todo:', todo);
       const transformedTodo = {
         id: todo.id,
         task: todo.task,
@@ -103,6 +107,7 @@ router.put('/:id',
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      console.log('Updating todo:', id, req.body);
       const validatedData = updateTodoSchema.parse(req.body);
       
       const updateData: any = {};
@@ -120,6 +125,7 @@ router.put('/:id',
         data: updateData
       });
 
+      console.log('Updated todo:', todo);
       const transformedTodo = {
         id: todo.id,
         task: todo.task,
@@ -150,6 +156,7 @@ router.put('/:id/toggle',
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      console.log('Toggling todo:', id);
       
       const currentTodo = await prisma.todo.findFirst({
         where: { 
@@ -167,6 +174,7 @@ router.put('/:id/toggle',
         data: { completed: !currentTodo.completed }
       });
 
+      console.log('Toggled todo:', todo);
       const transformedTodo = {
         id: todo.id,
         completed: todo.completed,
@@ -193,6 +201,7 @@ router.delete('/:id',
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      console.log('Deleting todo:', id);
       
       await prisma.todo.delete({
         where: { 
@@ -201,6 +210,7 @@ router.delete('/:id',
         }
       });
 
+      console.log('Deleted todo:', id);
       res.json({
         message: 'Todo deleted successfully'
       });

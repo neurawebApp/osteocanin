@@ -12,6 +12,7 @@ import contactRoutes from './routes/contact';
 import dashboardRoutes from './routes/dashboard';
 import todoRoutes from './routes/todos';
 import reminderRoutes from './routes/reminders';
+import treatmentNotesRoutes from './routes/treatmentNotes';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 
@@ -42,6 +43,7 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/todos', todoRoutes);
 app.use('/api/reminders', reminderRoutes);
+app.use('/api/treatment-notes', treatmentNotesRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

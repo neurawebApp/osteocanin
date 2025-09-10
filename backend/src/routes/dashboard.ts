@@ -12,6 +12,7 @@ router.get('/pending-appointments',
   requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
   async (req: AuthRequest, res) => {
     try {
+      console.log('Fetching pending appointments');
       const pendingAppointments = await prisma.appointment.findMany({
         where: {
           status: 'SCHEDULED'
@@ -26,10 +27,12 @@ router.get('/pending-appointments',
         orderBy: { startTime: 'asc' }
       });
 
+      console.log('Found pending appointments:', pendingAppointments.length);
       res.json({
         data: pendingAppointments
       });
     } catch (error: any) {
+      console.error('Error fetching pending appointments:', error);
       res.status(500).json({
         error: 'Failed to fetch pending appointments'
       });
@@ -43,6 +46,7 @@ router.get('/metrics',
   requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
   async (req: AuthRequest, res) => {
     try {
+      console.log('Fetching dashboard metrics');
       const [
         totalClients,
         totalAnimals,
@@ -99,6 +103,7 @@ router.get('/metrics',
 
       const monthlyRevenueTotal = completedAppointments.reduce((sum, apt) => sum + apt.service.price, 0);
 
+      console.log('Dashboard metrics calculated');
       res.json({
         data: {
           totalClients,
@@ -125,6 +130,7 @@ router.get('/schedule',
   requireRole([UserRole.ADMIN, UserRole.PRACTITIONER]), 
   async (req: AuthRequest, res) => {
     try {
+      console.log('Fetching today\'s schedule');
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const tomorrow = new Date(today);
@@ -147,10 +153,12 @@ router.get('/schedule',
         orderBy: { startTime: 'asc' }
       });
 
+      console.log('Found today\'s appointments:', appointments.length);
       res.json({
         data: appointments
       });
     } catch (error: any) {
+      console.error('Error fetching today\'s schedule:', error);
       res.status(500).json({
         error: 'Failed to fetch today\'s schedule'
       });

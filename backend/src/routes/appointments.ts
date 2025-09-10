@@ -18,12 +18,15 @@ const createAppointmentSchema = z.object({
 // Get user's appointments
 router.get('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    console.log('Fetching appointments for user:', req.user!.id, 'role:', req.user!.role);
     const appointments = await AppointmentService.getAppointmentsByUser(req.user!.id);
     
+    console.log('Found appointments:', appointments.length);
     res.json({
       data: appointments
     });
   } catch (error: any) {
+    console.error('Error fetching appointments:', error);
     res.status(500).json({
       error: 'Failed to fetch appointments'
     });
@@ -33,6 +36,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 // Create appointment
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    console.log('Creating appointment:', req.body);
     const validatedData = createAppointmentSchema.parse(req.body);
     
     // Calculate end time based on service duration
@@ -105,16 +109,19 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
           })
         )
       );
+      console.log('Created automatic reminders for appointment:', appointment.id);
     } catch (reminderError) {
       console.error('Failed to create automatic reminders:', reminderError);
       // Don't fail the appointment creation if reminders fail
     }
 
+    console.log('Created appointment:', appointment.id);
     res.status(201).json({
       data: appointment,
       message: 'Appointment created successfully'
     });
   } catch (error: any) {
+    console.error('Error creating appointment:', error);
     res.status(400).json({
       error: error.message || 'Failed to create appointment'
     });
@@ -125,6 +132,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 router.put('/:id/cancel', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
+    console.log('Cancelling appointment:', id);
     
     const appointment = await prisma.appointment.findUnique({
       where: { id },
@@ -200,6 +208,7 @@ router.put('/:id/cancel', authenticateToken, async (req: AuthRequest, res) => {
       }
     });
 
+    console.log('Cancelled appointment:', id);
     res.json({
       data: cancelledAppointment,
       message: 'Appointment cancelled successfully'
@@ -221,6 +230,7 @@ router.put('/:id/status',
       const { id } = req.params;
       const { status } = req.body;
 
+      console.log('Updating appointment status:', id, 'to:', status);
       if (!Object.values(AppointmentStatus).includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
       }
@@ -235,11 +245,13 @@ router.put('/:id/status',
         }
       });
 
+      console.log('Updated appointment status:', appointment.id);
       res.json({
         data: appointment,
         message: 'Appointment status updated successfully'
       });
     } catch (error: any) {
+      console.error('Error updating appointment status:', error);
       res.status(400).json({
         error: 'Failed to update appointment status'
       });
@@ -254,6 +266,7 @@ router.put('/:id/confirm',
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      console.log('Confirming appointment:', id);
       
       const appointment = await prisma.appointment.update({
         where: { id },
@@ -265,11 +278,13 @@ router.put('/:id/confirm',
         }
       });
 
+      console.log('Confirmed appointment:', appointment.id);
       res.json({
         data: appointment,
         message: 'Appointment confirmed successfully'
       });
     } catch (error: any) {
+      console.error('Error confirming appointment:', error);
       res.status(400).json({
         error: 'Failed to confirm appointment'
       });
@@ -285,6 +300,7 @@ router.put('/:id/refuse',
     try {
       const { id } = req.params;
       const { reason } = req.body;
+      console.log('Refusing appointment:', id, 'reason:', reason);
       
       const appointment = await prisma.appointment.update({
         where: { id },
@@ -299,11 +315,13 @@ router.put('/:id/refuse',
         }
       });
 
+      console.log('Refused appointment:', appointment.id);
       res.json({
         data: appointment,
         message: 'Appointment refused successfully'
       });
     } catch (error: any) {
+      console.error('Error refusing appointment:', error);
       res.status(400).json({
         error: 'Failed to refuse appointment'
       });
