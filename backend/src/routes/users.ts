@@ -82,9 +82,8 @@ router.put('/:id/validate',
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      console.log('Validating client:', id);
       
-      // For now, we'll just update a field or add a note
-      // In a real app, you might have an 'approved' field
       const user = await prisma.user.findUnique({
         where: { id },
         select: {
@@ -100,11 +99,17 @@ router.put('/:id/validate',
         return res.status(404).json({ error: 'User not found' });
       }
 
+      if (user.role !== UserRole.CLIENT) {
+        return res.status(400).json({ error: 'Only client accounts can be validated' });
+      }
+
+      console.log('Client validated successfully:', user.email);
       res.json({
         data: user,
         message: 'Client account validated successfully'
       });
     } catch (error: any) {
+      console.error('Error validating client:', error);
       res.status(400).json({
         error: 'Failed to validate client account'
       });
@@ -119,15 +124,32 @@ router.delete('/:id',
   async (req: AuthRequest, res) => {
     try {
       const { id } = req.params;
+      console.log('Deleting client:', id);
       
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: { role: true, email: true }
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      if (user.role !== UserRole.CLIENT) {
+        return res.status(400).json({ error: 'Only client accounts can be deleted' });
+      }
+
+      // Delete the user (cascade will handle related records)
       await prisma.user.delete({
         where: { id }
       });
 
+      console.log('Client deleted successfully:', user.email);
       res.json({
         message: 'Client account deleted successfully'
       });
     } catch (error: any) {
+      console.error('Error deleting client:', error);
       res.status(400).json({
         error: 'Failed to delete client account'
       });

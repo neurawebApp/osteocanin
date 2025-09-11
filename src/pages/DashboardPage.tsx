@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { apiClient } from '../lib/api';
 import { Button } from '../components/ui/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 import { Label } from '../components/ui/Label';
@@ -27,7 +27,8 @@ import {
   Cog6ToothIcon,
   ArrowRightIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  RefreshCcwIcon
 } from '@heroicons/react/24/outline';
 
 interface Todo {
@@ -124,7 +125,12 @@ const DashboardPage: React.FC = () => {
   // State management
   const [activeTab, setActiveTab] = useState('overview');
   const [newTodo, setNewTodo] = useState({ task: '', priority: 'medium' as const, dueDate: '', description: '' });
-  const [newReminder, setNewReminder] = useState({ message: '', type: 'manual', dueDate: '', priority: 'medium' as const });
+  const [newReminder, setNewReminder] = useState({
+    message: '',
+    type: 'APPOINTMENT_REMINDER',
+    priority: 'medium',
+    dueDate: ''
+  });
   const [newBlogPost, setNewBlogPost] = useState({
     title: '', titleFr: '', excerpt: '', excerptFr: '', content: '', contentFr: '', 
     coverImage: '', published: false, seoTitle: '', seoTitleFr: '', seoDesc: '', seoDescFr: ''
@@ -132,6 +138,17 @@ const DashboardPage: React.FC = () => {
   const [showNewTodoForm, setShowNewTodoForm] = useState(false);
   const [showNewReminderForm, setShowNewReminderForm] = useState(false);
   const [showNewBlogForm, setShowNewBlogForm] = useState(false);
+  const [deletingTodo, setDeletingTodo] = useState<string | null>(null);
+  const [completingTodo, setCompletingTodo] = useState<string | null>(null);
+  const [confirmingAppointment, setConfirmingAppointment] = useState<string | null>(null);
+  const [refusingAppointment, setRefusingAppointment] = useState<string | null>(null);
+  const [cancellingAppointment, setCancellingAppointment] = useState<string | null>(null);
+  const [creatingReminder, setCreatingReminder] = useState(false);
+  const [completingReminder, setCompletingReminder] = useState<string | null>(null);
+  const [deletingReminder, setDeletingReminder] = useState<string | null>(null);
+  const [validatingClient, setValidatingClient] = useState<string | null>(null);
+  const [deletingClient, setDeletingClient] = useState<string | null>(null);
+  const [showCreateReminder, setShowCreateReminder] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -177,7 +194,7 @@ const DashboardPage: React.FC = () => {
     enabled: isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'PRACTITIONER')
   });
 
-  const { data: clientsData } = useQuery({
+  const { data: clientsData, refetch: refetchClients } = useQuery({
     queryKey: ['clients'],
     queryFn: () => apiClient.getClients(),
     enabled: isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'PRACTITIONER')
@@ -270,6 +287,124 @@ const DashboardPage: React.FC = () => {
     mutationFn: (id: string) => apiClient.deleteClient(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['clients'] })
   });
+
+  const handleConfirmAppointment = async (appointmentId: string) => {
+    setConfirmingAppointment(appointmentId);
+    try {
+      await apiClient.confirmAppointment(appointmentId);
+      refetchAppointments();
+      refetchPendingAppointments();
+      refetchMetrics();
+    } catch (error) {
+      console.error('Error confirming appointment:', error);
+    } finally {
+      setConfirmingAppointment(null);
+    }
+  };
+
+  const handleRefuseAppointment = async (appointmentId: string) => {
+    setRefusingAppointment(appointmentId);
+    try {
+      await apiClient.refuseAppointment(appointmentId, 'Refused by admin');
+      refetchAppointments();
+      refetchPendingAppointments();
+      refetchMetrics();
+    } catch (error) {
+      console.error('Error refusing appointment:', error);
+    } finally {
+      setRefusingAppointment(null);
+    }
+  };
+
+  const handleCancelAppointment = async (appointmentId: string) => {
+    setCancellingAppointment(appointmentId);
+    try {
+      await apiClient.cancelAppointment(appointmentId);
+      refetchAppointments();
+      refetchPendingAppointments();
+      refetchMetrics();
+    } catch (error) {
+      console.error('Error cancelling appointment:', error);
+    } finally {
+      setCancellingAppointment(null);
+    }
+  };
+
+  const handleCreateReminder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingReminder(true);
+    try {
+      await apiClient.createReminder({
+        message: newReminder.message,
+        type: newReminder.type,
+        priority: newReminder.priority as 'high' | 'medium' | 'low',
+        dueDate: newReminder.dueDate
+      });
+      refetchReminders();
+      setShowCreateReminder(false);
+      setNewReminder({
+        message: '',
+        type: 'APPOINTMENT_REMINDER',
+        priority: 'medium',
+        dueDate: ''
+      });
+    } catch (error) {
+      console.error('Error creating reminder:', error);
+    } finally {
+      setCreatingReminder(false);
+    }
+  };
+
+  const handleMarkReminderDone = async (reminderId: string) => {
+    setCompletingReminder(reminderId);
+    try {
+      await apiClient.markReminderDone(reminderId);
+      refetchReminders();
+    } catch (error) {
+      console.error('Error marking reminder done:', error);
+    } finally {
+      setCompletingReminder(null);
+    }
+  };
+
+  const handleDeleteReminder = async (reminderId: string) => {
+    setDeletingReminder(reminderId);
+    try {
+      await apiClient.deleteReminder(reminderId);
+      refetchReminders();
+    } catch (error) {
+      console.error('Error deleting reminder:', error);
+    } finally {
+      setDeletingReminder(null);
+    }
+  };
+
+  const handleValidateClient = async (clientId: string) => {
+    setValidatingClient(clientId);
+    try {
+      await apiClient.validateClient(clientId);
+      refetchClients();
+    } catch (error) {
+      console.error('Error validating client:', error);
+    } finally {
+      setValidatingClient(null);
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    if (window.confirm('Are you sure you want to delete this client? This action cannot be undone.')) {
+      setDeletingClient(clientId);
+      try {
+        await apiClient.deleteClient(clientId);
+        refetchClients();
+        refetchMetrics();
+      } catch (error) {
+        console.error('Error deleting client:', error);
+      } finally {
+        setDeletingClient(null);
+      }
+    }
+  };
 
   // Show loading while checking authentication
   if (authLoading) {
@@ -455,26 +590,35 @@ const DashboardPage: React.FC = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {appointments.slice(0, 5).map((appointment: Appointment) => (
-                        <div key={appointment.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                      {appointments.slice(0, 5).map((appointment: any) => (
+                        <div key={appointment.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                           <div>
                             <p className="font-medium text-gray-900 dark:text-white">
-                              {appointment.animal.name} - {appointment.service.title}
+                              {appointment.client.firstName} {appointment.client.lastName} - {appointment.animal.name}
                             </p>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {new Date(appointment.startTime).toLocaleDateString()} at {new Date(appointment.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              {appointment.service.title} • {new Date(appointment.startTime).toLocaleDateString()}
                             </p>
                           </div>
-                          <Badge className={getStatusColor(appointment.status)}>
+                          <Badge variant={appointment.status === 'COMPLETED' ? 'default' : 'outline'}>
                             {appointment.status}
                           </Badge>
                         </div>
                       ))}
                       {appointments.length === 0 && (
-                        <p className="text-gray-500 dark:text-gray-400 text-center py-4">No appointments yet</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-center py-4">No appointments found</p>
                       )}
                     </div>
                   </CardContent>
+                  <CardFooter>
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setActiveTab('appointments')}
+                    >
+                      View All Appointments
+                    </Button>
+                  </CardFooter>
                 </Card>
 
                 <Card>
@@ -507,66 +651,91 @@ const DashboardPage: React.FC = () => {
             </div>
           )}
 
-          {/* Appointments Tab */}
+          {/* All Appointments Tab */}
           {activeTab === 'appointments' && (
-            <Card>
-              <CardHeader>
-                <CardTitle>All Appointments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {appointments.map((appointment: Appointment) => (
-                    <div key={appointment.id} className="border dark:border-gray-700 rounded-lg p-4">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">All Appointments</h2>
+                <Button onClick={() => refetchAppointments()}>
+                  <RefreshCcwIcon className="h-4 w-4 mr-2" />
+                  Refresh
+                </Button>
+              </div>
+              
+              <Card>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    {appointments.map((appointment: any) => (
+                      <div key={appointment.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-semibold text-gray-900 dark:text-white">
-                              {appointment.animal.name} - {appointment.service.title}
-                            </h3>
-                            <Badge className={getStatusColor(appointment.status)}>
-                              {appointment.status}
-                            </Badge>
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                {appointment.client.firstName} {appointment.client.lastName}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                {appointment.animal.name} ({appointment.animal.breed})
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                {appointment.service.title}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-gray-300">
+                                {new Date(appointment.startTime).toLocaleDateString()} at {new Date(appointment.startTime).toLocaleTimeString()}
+                              </p>
+                            </div>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <p>📅 {new Date(appointment.startTime).toLocaleDateString()}</p>
-                            <p>🕐 {new Date(appointment.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                            <p>🐕 {appointment.animal.breed}</p>
-                            <p>💰 €{appointment.service.price}</p>
-                            {isAdmin && (
-                              <p>👤 {appointment.client.firstName} {appointment.client.lastName}</p>
-                            )}
-                          </div>
-                          {appointment.notes && (
-                            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                              📝 {appointment.notes}
-                            </p>
-                          )}
                         </div>
-                        <div className="mt-4 sm:mt-0 sm:ml-4 flex space-x-2">
-                          <Button variant="outline" size="sm">
-                            <EyeIcon className="h-4 w-4" />
-                          </Button>
-                          {appointment.status === 'SCHEDULED' && (
-                            <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-                              Cancel
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={
+                            appointment.status === 'COMPLETED' ? 'default' :
+                            appointment.status === 'CONFIRMED' ? 'secondary' :
+                            appointment.status === 'CANCELLED' ? 'destructive' : 'outline'
+                          }>
+                            {appointment.status}
+                          </Badge>
+                          {user?.role !== 'CLIENT' && appointment.status === 'SCHEDULED' && (
+                            <div className="flex space-x-2">
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleConfirmAppointment(appointment.id)}
+                                disabled={confirmingAppointment === appointment.id}
+                              >
+                                {confirmingAppointment === appointment.id ? 'Confirming...' : 'Confirm'}
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="destructive"
+                                onClick={() => handleRefuseAppointment(appointment.id)}
+                                disabled={refusingAppointment === appointment.id}
+                              >
+                                {refusingAppointment === appointment.id ? 'Refusing...' : 'Refuse'}
+                              </Button>
+                            </div>
+                          )}
+                          {appointment.status !== 'CANCELLED' && appointment.status !== 'COMPLETED' && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleCancelAppointment(appointment.id)}
+                              disabled={cancellingAppointment === appointment.id}
+                            >
+                              {cancellingAppointment === appointment.id ? 'Cancelling...' : 'Cancel'}
                             </Button>
                           )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                  {appointments.length === 0 && (
-                    <div className="text-center py-8">
-                      <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 dark:text-gray-400">No appointments found</p>
-                      <Link to="/booking">
-                        <Button className="mt-4">Book Your First Appointment</Button>
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                    {appointments.length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 dark:text-gray-400">No appointments found</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Pending Appointments Tab (Admin Only) */}
@@ -764,131 +933,132 @@ const DashboardPage: React.FC = () => {
             </Card>
           )}
 
-          {/* Reminders Tab (Admin Only) */}
-          {activeTab === 'reminders' && isAdmin && (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center">
-                    <BellIcon className="h-5 w-5 mr-2" />
-                    Reminders
-                  </CardTitle>
-                  <Button onClick={() => setShowNewReminderForm(true)}>
-                    <PlusIcon className="h-4 w-4 mr-2" />
-                    Add Reminder
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {showNewReminderForm && (
-                  <div className="mb-6 p-4 border dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800">
-                    <h3 className="font-semibold mb-4">Add New Reminder</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="md:col-span-2">
-                        <Label htmlFor="message">Message *</Label>
+          {/* Reminders Tab */}
+          {activeTab === 'reminders' && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Reminders</h2>
+                <Button onClick={() => setShowCreateReminder(true)}>
+                  <PlusIcon className="h-4 w-4 mr-2" />
+                  Create Reminder
+                </Button>
+              </div>
+
+              {/* Create Reminder Form */}
+              {showCreateReminder && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Create New Reminder</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleCreateReminder} className="space-y-4">
+                      <div>
+                        <Label htmlFor="reminderMessage">Message</Label>
                         <Input
-                          id="message"
+                          id="reminderMessage"
                           value={newReminder.message}
                           onChange={(e) => setNewReminder(prev => ({ ...prev, message: e.target.value }))}
                           placeholder="Enter reminder message"
+                          required
                         />
                       </div>
-                      <div>
-                        <Label htmlFor="reminderType">Type</Label>
-                        <Select value={newReminder.type} onValueChange={(value) => setNewReminder(prev => ({ ...prev, type: value }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="manual">Manual</SelectItem>
-                            <SelectItem value="appointment">Appointment</SelectItem>
-                            <SelectItem value="follow-up">Follow-up</SelectItem>
-                            <SelectItem value="birthday">Birthday</SelectItem>
-                          </SelectContent>
-                        </Select>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="reminderType">Type</Label>
+                          <Select value={newReminder.type} onValueChange={(value) => setNewReminder(prev => ({ ...prev, type: value }))}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="APPOINTMENT_REMINDER">Appointment Reminder</SelectItem>
+                              <SelectItem value="FOLLOW_UP">Follow Up</SelectItem>
+                              <SelectItem value="APPOINTMENT_CONFIRMATION">Confirmation</SelectItem>
+                              <SelectItem value="BIRTHDAY">Birthday</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label htmlFor="reminderPriority">Priority</Label>
+                          <Select value={newReminder.priority} onValueChange={(value) => setNewReminder(prev => ({ ...prev, priority: value }))}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select priority" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="high">High</SelectItem>
+                              <SelectItem value="medium">Medium</SelectItem>
+                              <SelectItem value="low">Low</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                       <div>
-                        <Label htmlFor="reminderPriority">Priority</Label>
-                        <Select value={newReminder.priority} onValueChange={(value: any) => setNewReminder(prev => ({ ...prev, priority: value }))}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="md:col-span-2">
-                        <Label htmlFor="reminderDate">Remind At *</Label>
+                        <Label htmlFor="reminderDueDate">Due Date</Label>
                         <Input
-                          id="reminderDate"
+                          id="reminderDueDate"
                           type="datetime-local"
                           value={newReminder.dueDate}
                           onChange={(e) => setNewReminder(prev => ({ ...prev, dueDate: e.target.value }))}
+                          required
                         />
                       </div>
-                    </div>
-                    <div className="flex space-x-2 mt-4">
-                      <Button 
-                        onClick={() => createReminderMutation.mutate(newReminder)}
-                        disabled={!newReminder.message || !newReminder.dueDate || createReminderMutation.isPending}
-                      >
-                        {createReminderMutation.isPending ? 'Creating...' : 'Create Reminder'}
-                      </Button>
-                      <Button variant="outline" onClick={() => setShowNewReminderForm(false)}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  {reminders.map((reminder: Reminder) => (
-                    <div key={reminder.id} className={`flex items-center space-x-3 p-3 rounded-lg border dark:border-gray-700 ${reminder.completed ? 'bg-gray-50 dark:bg-gray-800 opacity-75' : 'bg-white dark:bg-gray-900'}`}>
-                      <BellIcon className={`h-5 w-5 ${reminder.completed ? 'text-gray-400' : 'text-blue-600'}`} />
-                      <div className="flex-1">
-                        <p className={`font-medium ${reminder.completed ? 'line-through text-gray-500' : 'text-gray-900 dark:text-white'}`}>
-                          {reminder.message}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {new Date(reminder.dueDate).toLocaleString()}
-                        </p>
-                      </div>
-                      <Badge className={getPriorityColor(reminder.priority)}>
-                        {reminder.priority}
-                      </Badge>
-                      <Badge variant="outline">{reminder.type}</Badge>
-                      {!reminder.completed && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => markReminderDoneMutation.mutate(reminder.id)}
-                          className="text-green-600 hover:text-green-700"
-                        >
-                          <CheckCircleIcon className="h-4 w-4" />
+                      <div className="flex space-x-2">
+                        <Button type="submit" disabled={creatingReminder}>
+                          {creatingReminder ? 'Creating...' : 'Create Reminder'}
                         </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteReminderMutation.mutate(reminder.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <TrashIcon className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
-                  {reminders.length === 0 && (
-                    <div className="text-center py-8">
-                      <BellIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 dark:text-gray-400">No reminders yet</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                        <Button type="button" variant="outline" onClick={() => setShowCreateReminder(false)}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    {reminders.map((reminder: any) => (
+                      <div key={reminder.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900 dark:text-white">{reminder.message}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            Due: {new Date(reminder.dueDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Badge variant={reminder.priority === 'high' ? 'destructive' : reminder.priority === 'medium' ? 'default' : 'secondary'}>
+                            {reminder.priority}
+                          </Badge>
+                          {!reminder.completed && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleMarkReminderDone(reminder.id)}
+                              disabled={completingReminder === reminder.id}
+                            >
+                              {completingReminder === reminder.id ? 'Marking...' : 'Mark Done'}
+                            </Button>
+                          )}
+                          <Button 
+                            size="sm" 
+                            variant="destructive"
+                            onClick={() => handleDeleteReminder(reminder.id)}
+                            disabled={deletingReminder === reminder.id}
+                          >
+                            {deletingReminder === reminder.id ? 'Deleting...' : 'Delete'}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {reminders.length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-gray-500 dark:text-gray-400">No reminders found</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Blog Tab (Admin Only) */}
@@ -1068,63 +1238,50 @@ const DashboardPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {clients.map((client: Client) => (
-                    <div key={client.id} className="border dark:border-gray-700 rounded-lg p-4">
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {clients.map((client: any) => (
+                    <div key={client.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4">
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">
                               {client.firstName} {client.lastName}
-                            </h3>
-                            <Badge variant="outline">Client</Badge>
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{client.email}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{client.phone}</p>
                           </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm text-gray-600 dark:text-gray-400">
-                            <p>📧 {client.email}</p>
-                            {client.phone && <p>📱 {client.phone}</p>}
-                            <p>📅 Joined: {new Date(client.createdAt).toLocaleDateString()}</p>
-                            <p>🐕 Pets: {client.animals.length}</p>
-                            <p>📋 Appointments: {client.appointments.length}</p>
+                          <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              {client.animals?.length || 0} pets • {client.appointments?.length || 0} appointments
+                            </p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">
+                              Joined: {new Date(client.createdAt).toLocaleDateString()}
+                            </p>
                           </div>
-                          {client.animals.length > 0 && (
-                            <div className="mt-2">
-                              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Pets:</p>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {client.animals.map((animal) => (
-                                  <Badge key={animal.id} variant="outline" className="text-xs">
-                                    {animal.name} ({animal.breed})
-                                  </Badge>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
-                        <div className="mt-4 lg:mt-0 lg:ml-4 flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => validateClientMutation.mutate(client.id)}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <CheckCircleIcon className="h-4 w-4 mr-1" />
-                            Validate
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => deleteClientMutation.mutate(client.id)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <TrashIcon className="h-4 w-4 mr-1" />
-                            Delete
-                          </Button>
-                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleValidateClient(client.id)}
+                          disabled={validatingClient === client.id}
+                        >
+                          {validatingClient === client.id ? 'Validating...' : 'Validate'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleDeleteClient(client.id)}
+                          disabled={deletingClient === client.id}
+                        >
+                          {deletingClient === client.id ? 'Deleting...' : 'Delete'}
+                        </Button>
                       </div>
                     </div>
                   ))}
                   {clients.length === 0 && (
                     <div className="text-center py-8">
-                      <UserGroupIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500 dark:text-gray-400">No clients yet</p>
+                      <p className="text-gray-500 dark:text-gray-400">No clients found</p>
                     </div>
                   )}
                 </div>
